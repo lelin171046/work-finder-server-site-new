@@ -59,9 +59,9 @@ const verifyToken = (req, res, next) => {
 
 }
 
-const uri = `mongodb://localhost:27017/`
+// const uri = `mongodb://localhost:27017/`
 
-// const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.0f5vnoo.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.0f5vnoo.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
 // Create a MongoClient
 const client = new MongoClient(uri, {
@@ -133,10 +133,10 @@ async function run() {
       }
       const alreadyAlllied = await bidsCollection.findOne(query)
       console.log(alreadyAlllied);
-      if(alreadyAlllied) {
-        return res 
-        .status(400)
-        .send('You already place a bid on this job')
+      if (alreadyAlllied) {
+        return res
+          .status(400)
+          .send('You already place a bid on this job')
       }
 
       // console.log(data, 'bid data');
@@ -153,35 +153,35 @@ async function run() {
     });
 
     // My posted jobs list
-    
+
     app.get('/jobs/:email', verifyToken, async (req, res) => {
       const tokenEmail = req.user?.email;
       const email = req.params.email;
-    
+
       if (tokenEmail !== email) {
         return res.status(403).send({ message: 'Forbidden access' });
       }
-    
+
       const query = { 'buyer.email': email };
       const result = await jobCollection.find(query).toArray();
       res.send(result);
     });
-    
-  
+
+
 
     // Delete a job post
-    app.delete('/jobs/:id',  async (req, res) => {
+    app.delete('/jobs/:id', async (req, res) => {
       const id = req.params.id;
-    
+
       const query = { _id: new ObjectId(id) };
       const result = await jobCollection.deleteOne(query);
       res.send(result);
     });
 
     // Update job
-    app.put('/update/:id',  async (req, res) => {
+    app.put('/update/:id', async (req, res) => {
       const id = req.params.id;
-       
+
       const jobData = req.body;
       const query = { _id: new ObjectId(id) };
       const options = { upsert: true };
@@ -198,17 +198,17 @@ async function run() {
       // const tokenEmail =req.user.email
       const email = req.params.email
 
-      
+
       const query = { email };
       const result = await bidsCollection.find(query).toArray();
       res.send(result);
     });
 
     // Bids request for a job
-    app.get('/bids-requests/:email',  async (req, res) => {
+    app.get('/bids-requests/:email', async (req, res) => {
       // const tokenEmail =req.user.email
       const email = req.params.email
-      
+
       // if(tokenEmail !== email){
       //   return res.status(403).send({ message: 'forbidden access' })
       // }
@@ -228,6 +228,30 @@ async function run() {
       console.log('ok', status);
     });
 
+    // All job 
+    app.get('/all-jobs', async (req, res) => {
+      const size = parseInt(req.query.size)
+      const page = parseInt(req.query.page) - 1
+      const filter = req.query.filter
+      const sort = req.query.sort
+      const search = req.query.search
+      let query = { 
+        job_title: { $regex: search, $options: 'i' }}
+      if(filter) query.category = filter 
+      let option = {}
+      if(sort) option = {sort : {deadline: sort === "asc" ? 1 : -1}}
+      const result = await jobCollection.find(query, option).skip(page * size).limit(size).toArray();
+      res.send(result);
+    });
+    //Count all job
+    app.get('/jobs-count', async (req, res) => {
+      const filter = req.query.filter;
+  const count = await jobCollection.countDocuments(
+    filter ? { category: filter } : {}
+  );
+      
+      res.send({count});
+    });
     // Send a ping to confirm successful connection
     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
