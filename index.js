@@ -18,26 +18,6 @@ app.use(cors(corsOption));
 app.use(express.json());
 app.use(cookieParser());
 
-//verify middle wire 
-
-// const verifyToken = (req, res, next) => {
-//   const token = req.cookies?.token;
-
-//   if (!token) {
-//     return res.status(401).send({ message: 'Unauthorized access: Missing token' });
-//   }
-
-//   jwt.verify(token, process.env.S_Key, (err, decoded) => {
-//     if (err) {
-//       console.error('Token verification error:', err.message); // Logs the error for debugging
-//       return res.status(401).send({ message: 'Unauthorized access: Invalid token' });
-//     }
-
-//     req.user = decoded; // Assign decoded token payload to `req.user`
-//     next(); // Call the next middleware or route handler
-//   });
-// };
-
 
 const verifyToken = (req, res, next) => {
   const token = req.cookies?.token
@@ -246,8 +226,16 @@ async function run() {
     //Count all job
     app.get('/jobs-count', async (req, res) => {
       const filter = req.query.filter;
+
+      const search = req.query.search;
+
+      let query = { 
+        job_title: { $regex: search, $options: 'i' }}
+
+      if(filter) query.category = filter  
+
   const count = await jobCollection.countDocuments(
-    filter ? { category: filter } : {}
+    query
   );
       
       res.send({count});
