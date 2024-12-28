@@ -2,6 +2,7 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
+const helmet = require('helmet')
 const cookieParser = require('cookie-parser');
 require('dotenv').config();
 const app = express();
@@ -10,7 +11,7 @@ const port = process.env.PORT || 3003;
 
 // CORS options
 const corsOption = {
-  origin: ['http://localhost:5173', 'https://work-finder-server-site-3uwf5c7wx-moniruzzaman-lelins-projects.vercel.app'],
+  origin: ['http://localhost:5173', 'https://builder-bd.firebaseapp.com', ],
   credentials: true,
   optionSuccessStatus: 200,
 };
@@ -18,6 +19,25 @@ app.use(cors(corsOption));
 app.use(express.json());
 app.use(cookieParser());
 
+//halmet
+
+app.use(helmet());
+
+app.use(
+  helmet.contentSecurityPolicy({
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://vercel.live"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'", "https:"],
+      fontSrc: ["'self'", "https:", "data:"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'self'"],
+    },
+  })
+);
 
 const verifyToken = (req, res, next) => {
   const token = req.cookies?.token
@@ -55,7 +75,7 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect to MongoDB (Optional starting in v4.7)
-    await client.connect();
+    // await client.connect();
 
     const jobCollection = client.db('workFinder').collection('jobs');
     const bidsCollection = client.db('workFinder').collection('bids');
@@ -210,19 +230,29 @@ async function run() {
 
     // All job 
     app.get('/all-jobs', async (req, res) => {
-      const size = parseInt(req.query.size)
-      const page = parseInt(req.query.page) - 1
-      const filter = req.query.filter
-      const sort = req.query.sort
-      const search = req.query.search
-      let query = { 
-        job_title: { $regex: search, $options: 'i' }}
-      if(filter) query.category = filter 
-      let option = {}
-      if(sort) option = {sort : {deadline: sort === "asc" ? 1 : -1}}
-      const result = await jobCollection.find(query, option).skip(page * size).limit(size).toArray();
-      res.send(result);
+      try {
+        const size = parseInt(req.query.size) || 10; // Default size if not provided
+        const page = parseInt(req.query.page) - 1 || 0; // Default page to 0 if not provided
+        const filter = req.query.filter;
+        const sort = req.query.sort;
+        const search = req.query.search;
+    
+        let query = { job_title: { $regex: search, $options: 'i' } };
+        if (filter) query.category = filter;
+    
+        let option = {};
+        if (sort) option = { sort: { deadline: sort === "asc" ? 1 : -1 } };
+    
+        // Make sure jobCollection is available and connected
+        const result = await jobCollection.find(query, option).skip(page * size).limit(size).toArray();
+        
+        res.status(200).send(result);
+      } catch (err) {
+        console.error("Error fetching jobs:", err);
+        res.status(500).send({ error: 'An error occurred while fetching jobs.' });
+      }
     });
+    
     //Count all job
     app.get('/jobs-count', async (req, res) => {
       const filter = req.query.filter;
@@ -241,7 +271,7 @@ async function run() {
       res.send({count});
     });
     // Send a ping to confirm successful connection
-    await client.db("admin").command({ ping: 1 });
+    // await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
 
   } catch (err) {
@@ -258,4 +288,4 @@ app.get('/', (req, res) => {
 });
 
 // Start the server
-app.listen(port, () => console.log(`Server running on port: ${port}`));
+app.listen(port, () => console.log(`Server running on port: ${port}`))
