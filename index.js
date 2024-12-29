@@ -126,21 +126,27 @@ async function run() {
 
     // Add a bid
     app.post('/bid', async (req, res) => {
-      const data = req.body;
+      const bidData = req.body;
       const query = {
-        email: data.email,
-        jobId: data.jobId
+        email: bidData.email,
+        jobId: bidData.jobId
       }
       const alreadyAlllied = await bidsCollection.findOne(query)
-      console.log(alreadyAlllied);
+     
       if (alreadyAlllied) {
         return res
           .status(400)
           .send('You already place a bid on this job')
       }
+      const result = await bidsCollection.insertOne(bidData);
 
-      // console.log(data, 'bid data');
-      const result = await bidsCollection.insertOne(data);
+       // update bid count in jobs collection
+       const updateDoc = {
+        $inc: { bid_count: 1 },
+      }
+      const jobQuery = { _id: new ObjectId(bidData.jobId) }
+      const updateBidCount = await jobCollection.updateOne(jobQuery, updateDoc)
+      console.log(updateBidCount);
       res.send(result);
     });
 
